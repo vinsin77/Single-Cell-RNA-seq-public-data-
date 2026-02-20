@@ -1,6 +1,6 @@
 #Overall Strategy
-#Step 1 — Load each sample separately
-#Step 2 — QC per sample
+#Step 1 — Load each sample separately +
+#Step 2 — QC per sample +
 #Step 3 — SCTransform normalization
 #Step 4 — Integration across 11 samples
 #Step 5 — PCA + UMAP + clustering
@@ -31,6 +31,10 @@ test_counts <- Read10X(data.dir = file.path(data_dir, "normal1"))
 str(test_counts)
 #> Formal class 'dgCMatrix' [package "Matrix"] with 6 slot...
 
+#Use parallelization for SCTransform
+library(future)
+plan("multicore", workers = 4) # or however many cores you have
+
 #running for all 11 samples:
 for (sample_path in sample_dirs) {
    sample_name <- basename(sample_path)
@@ -52,37 +56,36 @@ for (sample_path in sample_dirs) {
     seurat_obj$condition <- "Tumor"
   }
   
-  sample_list[[i]] <- seurat_obj
+  sample_list[[sample_name]] <- seurat_obj
 }
 
-for (i in 1:length(sample_list)) {
-  
-  sample_list[[i]][["percent.mt"]] <- PercentageFeatureSet(
-    sample_list[[i]],
-    pattern = "^MT-"
+for (sample_name in names(sample_list)) {
+  #add mitochondrial percentage
+  sample_list[[sample_name]][["percent.mt"]] <- PercentageFeatureSet(
+    sample_list[[sample_name]],
+    pattern = "^MT-"  #human
   )
-  
-  sample_list[[i]] <- subset(
-    sample_list[[i]],
+  #QC filtering
+  sample_list[[sample_name]] <- subset(
+    sample_list[[sample_name]],
     subset = nFeature_RNA > 300 &
              nFeature_RNA < 6000 &
              percent.mt < 15
   )
+   cat("Finished QC for:", sample_name, "\n")
 }
-for (i in 1:length(sample_list)) {
-  
-  sample_list[[i]][["percent.mt"]] <- PercentageFeatureSet(
-    sample_list[[i]],
-    pattern = "^MT-"
-  )
-  
-  sample_list[[i]] <- subset(
-    sample_list[[i]],
-    subset = nFeature_RNA > 300 &
-             nFeature_RNA < 6000 &
-             percent.mt < 15
-  )
+
+# normalisation stage using SCTransform
+#install.packages('BiocManager')
+#BiocManager::install('glmGamPoi') #for much faster implementation
+library(glmGamPoi)
+
+for (sample_name in names(sample_list)) {
+  sample_list[[sample_name]] <- SCTransform(sample_list[[sample_name]],
+                                  vars.to.regress = "percent.mt",
+                                  verbose = FALSE)
 }
+##this takes a while ~ afew hours!!
 features <- SelectIntegrationFeatures(object.list = sample_list, nfeatures = 3000)
 
 sample_list <- PrepSCTIntegration(object.list = sample_list,
