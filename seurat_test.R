@@ -8,19 +8,36 @@
 #Step 7 — Compare tumor vs normal
 #Step 8 — Subcluster immune cells
 
+#connecting remote host (bctl-gpu)
+#working on VS-code
+#module spider R/4.4.1-gfbf-2023b
+module spider Seurat/5.1.0
+module load R-bundle-Bioconductor/3.19-foss-2023b-R-4.4.1
+
 library(Seurat)
 library(dplyr)
 
-sample_dirs <- list.dirs("data", recursive = FALSE)
+#directories:
+setwd("/main/my_folder/test_out") #working path/outputs
+getwd()
+data_dir <- "/main/public/paper1/cellranger" #data location, there are normal and cancer samples
 
+sample_dirs <- list.dirs(data_dir, recursive = FALSE)
+sample_dirs
 sample_list <- list()
 
-for (i in seq_along(sample_dirs)) {
+#testing for one sample only:
+test_counts <- Read10X(data.dir = file.path(data_dir, "normal1"))
+str(test_counts)
+#> Formal class 'dgCMatrix' [package "Matrix"] with 6 slot...
+
+#running for all 11 samples:
+for (sample_path in sample_dirs) {
+   sample_name <- basename(sample_path)
   
-  counts <- Read10X(data.dir = file.path(sample_dirs[i], "filtered_feature_bc_matrix"))
+  counts <- Read10X(data.dir = sample_path)
   
-  sample_name <- basename(sample_dirs[i])
-  
+ 
   seurat_obj <- CreateSeuratObject(counts = counts,
                                    project = sample_name,
                                    min.cells = 3,
