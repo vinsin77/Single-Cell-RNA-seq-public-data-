@@ -84,6 +84,19 @@ for (sample_name in names(sample_list)) {
 #dir.create("rds_objects", showWarnings = FALSE)
 #saveRDS(sample_list, file = "rds_objects/all_samples_QC.rds")
 
+# If we saved QC-filtered list:
+sample_list <- readRDS("rds_objects/all_samples_QC.rds")
+library(future)
+plan(sequential)
+plan("multicore", workers = 8)
+#Run SCTransform on ONE sample first to make sure it actually runs:
+
+sample_list[["normal1"]] <- SCTransform(
+    sample_list[["normal1"]],
+    vars.to.regress = "percent.mt",
+    verbose = TRUE
+)
+
 
 # normalisation stage using SCTransform
 #install.packages('BiocManager')
@@ -100,6 +113,7 @@ features <- SelectIntegrationFeatures(object.list = sample_list, nfeatures = 300
 
 sample_list <- PrepSCTIntegration(object.list = sample_list,
                                   anchor.features = features)
+#ifnb <- IntegrateLayers(object = ifnb, method = CCAIntegration, normalization.method = "SCT") 
 
 anchors <- FindIntegrationAnchors(object.list = sample_list,
                                   normalization.method = "SCT",
