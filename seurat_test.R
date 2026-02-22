@@ -33,7 +33,7 @@ str(test_counts)
 
 #Use parallelization for SCTransform
 library(future)
-plan("multicore", workers = 4) # or however many cores you have
+plan("multicore", workers = 8) # or however many cores you have
 
 #running for all 11 samples:
 for (sample_path in sample_dirs) {
@@ -58,6 +58,12 @@ for (sample_path in sample_dirs) {
   
   sample_list[[sample_name]] <- seurat_obj
 }
+##check cell numbers
+sapply(sample_list, ncol)
+#>normal1 normal2 normal3 patient1 patient2 patient3 patient4 patient5 9946 8250 6671 10013 12284 7730 8514 8377
+sum(sapply(sample_list, ncol))
+#>[1] 106115
+
 
 for (sample_name in names(sample_list)) {
   #add mitochondrial percentage
@@ -74,6 +80,10 @@ for (sample_name in names(sample_list)) {
   )
    cat("Finished QC for:", sample_name, "\n")
 }
+#saving
+#dir.create("rds_objects", showWarnings = FALSE)
+#saveRDS(sample_list, file = "rds_objects/all_samples_QC.rds")
+
 
 # normalisation stage using SCTransform
 #install.packages('BiocManager')
@@ -85,7 +95,7 @@ for (sample_name in names(sample_list)) {
                                   vars.to.regress = "percent.mt",
                                   verbose = FALSE)
 }
-##this takes a while ~ afew hours!!
+##SCTransform takes a while ~ afew hours!!
 features <- SelectIntegrationFeatures(object.list = sample_list, nfeatures = 3000)
 
 sample_list <- PrepSCTIntegration(object.list = sample_list,
